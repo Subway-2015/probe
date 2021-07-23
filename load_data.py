@@ -9,12 +9,9 @@ import json
 import os
 import psycopg2
 
-#замечание: если ту, як, и так далее, то брать только последние буквы
-#но это к краулерам
-
-os.chdir ('/home/maxim/files/input/')
+os.chdir ('')
 datas = os.listdir()
-path_out = '/home/maxim/files/output/'
+path_out = ''
 
 def func_kai():
     datas = os.listdir()
@@ -37,46 +34,39 @@ def func_kai():
         
 def improved (mass):
     conn = psycopg2.connect(
-         database="BD_Planes", 
-         user='postgres', 
-         password='123456789', 
-         host='localhost',
-	  port=5432
+         database="", 
+         user='', 
+         password='', 
+         host='',
+	  port=
          )
-     #Setting auto commit false
+
     conn.autocommit = True
 
-    #Creating a cursor object using the cursor() method
+    
     cursor = conn.cursor() 
     zarpos_size = mass[1]
     cursor.execute(zarpos_size)
     
 def imp2 (mass):
     conn = psycopg2.connect(
-         database="BD_Planes", 
-         user='postgres', 
-         password='123456789', 
-         host='localhost',
-	 port=5432
+         database="", 
+         user='', 
+         password='', 
+         host='',
+	 port=
          )
-     #Setting auto commit false
+     
     conn.autocommit = True
 
-    #Creating a cursor object using the cursor() method
     cursor = conn.cursor() 
     zarpos_model = mass[0] 
     cursor.execute(zarpos_model)
-    # Preparing SQL queries to INSERT a record into the database.
-   # Closing the connection
     conn.close()       
 
 
     
 def form_select (inp_file, num):
-    #формирует запрос
-    #на вход получает .json файл
-    #производит скрипт
-   # print (num)
     code_error = 0
     counter = 0
     link = []
