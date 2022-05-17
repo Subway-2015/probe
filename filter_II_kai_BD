@@ -1,0 +1,320 @@
+
+import json
+import datetime
+import os
+import psycopg2
+
+
+#---today---
+t2 = datetime.date.today()
+t3 = datetime.timedelta(days = 1)
+time_I = (t2 - t3).strftime('%d.%m.%Y')#'27.03.2022'
+#print(time_I)
+
+#---main file for reading
+current_dir = 'c://users/maxma/downloads/app/'
+os.listdir(current_dir)
+
+
+#f = open('29.03.2022.json', encoding='UTF8')
+#data = json.load(f)
+
+with open('27.03.2022.json', encoding='UTF8') as json_file:
+    all_air = json.load(json_file)
+    r = json.dumps(all_air,).replace('null','"notgiven"')
+    all_airplan = json.loads(r)
+    #print(all_airplan) рабочий обрабатываемый файл всех рейсов в день
+    
+    
+#---totally files
+total = []
+for user in all_airplan:
+    total.append(user['url'])
+combien = len(total)
+print(combien) #число рейсов - сколько их всего было в день
+
+#---setting sets (установка сетов)
+url_set = []
+aircraft_set = []
+origin_set = []
+destination_set = []
+direct_distance_set = []
+coordinates_set = []
+
+#---filling sets
+for user in all_airplan:
+    url = user['url']
+    url_set.append(url) #---filling  url-set
+    aircraft = user['aircraft']
+    aircraft_set.append(aircraft)#---filling  plane-set
+    origin = user['origin']
+    origin_set.append(origin)#---filling origin-set
+    destination = user['destination']
+    destination_set.append(destination)#---filling destination-set
+    direct_distance = user['direct_distance']
+    direct_distance_set.append(direct_distance)#---filling direct_distance-set
+    coordinates = user['coordinates']
+    coordinates_set.append(coordinates)#---filling coordinates-set
+    
+#---фильтр рейсов
+url_new = []
+g0 = 0
+while g0 < combien:
+    url_ne = url_set[g0]
+    url_n = url_ne.replace('https://ru.flightaware.com/live/flight', '')
+    url_new.append(url_n)
+    g0 += 1
+#print(url_new) все рейсы в день
+
+#---plane filter
+aircraft_new = []
+g = 0
+i = 0
+while g < combien:
+    if aircraft_set[g].find('(') != -1:
+        jp = aircraft_set[g]
+        j = jp.index(' (')
+        a_r = jp[i:j:1]
+        aircraft_new.append(a_r)
+        g += 1
+    elif aircraft_set[g] == 'notgiven':
+        a_t = aircraft_set[g]
+        aircraft_new.append(a_t)
+        g += 1
+    else:
+        g += 1
+#print(aircraft_new) использованные самолеты
+
+#---coordinate filter
+coor = []
+coordinates_new = []
+g2 = 0
+while g2 < combien:
+    z = len(coordinates_set[g2])
+    coor = coordinates_set[g2]
+    coordinates_n = []
+    coordinates_n.append(coor[1])
+    coordinates_n.append(coor[2])
+    i = 6
+    while i < z:
+        if coor[i].find('.') != -1:
+            coordinates_n.append(coor[i])
+            i += 1
+        else:
+            i += 1
+    coordinates_new.append(coordinates_n)
+    g2 += 1
+    #print(g2) отсев всех координат в единый большой массив, неструктурировано
+"""   if (g2 == 1160 or g2 == 1161):
+        print('got it')
+        num = str(g2)
+        nameoffile = '' + num + '.txt'
+        #str_coord = ''
+        with open(nameoffile, mode='w+', encoding='utf-8') as output_coordinates:
+                for str_coord in coordinates_new:
+                    output_coordinates.writelines(str_coord)
+        #print(coordinates_new) #загнать в файл
+"""
+    
+coordinates_new_form = []
+g3 = 0
+while g3 < combien:
+    xol = coordinates_new[g3]
+    z2 = len(xol)
+    allpoints = (int(z2/2) - 2)
+    body_in_new = []
+    i = 2
+    while i < z2:
+        i += 1
+        x1 = i - 1
+        x = xol[x1]
+        y1 = i
+        y = xol[y1]
+        i += 1
+        
+        body_in = {"longtitude": x, "latitude": y}
+        body_in_new.append(body_in)
+        body_all = {"allpoints": allpoints, "points": body_in_new}
+    #print(body_all) структурированный вывод всех координат в единый массив
+    coordinates_new_form.append(body_all)
+    g3 += 1
+
+#---reading CO2 file (plane's polution) пока что не требуется, но ''' надо размутить
+#---co2 json include {emissions_less, emissions_max, seats_max, seats_less, max_airplane_weight, commercial_weight}
+conn = psycopg2.connect(
+         database="BD_Planes", 
+         user='postgres', 
+         password='', 
+         host=''
+         )
+     #Setting auto commit false
+conn.autocommit = True
+
+    #Creating a cursor object using the cursor() method
+cursor = conn.cursor() 
+    # Preparing SQL queries to INSERT a record into the database.
+   # Closing the connection
+
+
+with open('CO7.json', mode = 'r', encoding='utf-8') as file: 
+    day_json_dataCO2 = json.load(file)
+#print(day_json_dataCO2)
+
+#---kilometer filter
+direct_distance_new = []
+g4 = 0
+while g4 < combien:
+    direct_distance_n = direct_distance_set[g4]
+    direct_distance_ne = 1.60934 * direct_distance_n
+    direct_distance_new.append(direct_distance_ne)
+    g4 += 1
+#print(direct_distance_new) замеряет дистанцию каждого полета
+print(len(direct_distance_new))
+
+#---assigning math sets
+totalfuelwastedless_new = []
+totalfuelwastedmax_new = []
+totalemissionless_new = []
+totalemissionmax_new = []
+emissionsforpointless_new = []
+emissionsforpointmax_new = []
+seats_max_new = []
+seats_less_new = []
+in_data = []
+g5 = 0
+bug_fail = 0 #проблемные ноды
+while g5 < combien:
+    in_dat = aircraft_new[g5]
+    in_data.append(in_dat)
+
+#---maths
+    try:
+        if not (direct_distance_new[g5] == 0):
+            
+      
+            if not zzz:
+                for users in day_json_dataCO2:
+                   '''
+                   '''
+            else:        
+                print('new')
+               # print(zzz)#поправить формулы под новый порядок
+                emissions_less = (100 * ((float(zzz[0][5])) * 0.835)) / (float(zzz[0][4])) * 3.15
+                print(emissions_less)
+                emissions_max = (100 * ((float(zzz[0][6])) * 0.835)) / (float(zzz[0][4])) * 3.15
+                print(emissions_max)
+                seats_max = int(zzz[0][1])
+                seats_less = int(float(zzz[0][1]) * 0.75)
+                m_airplane_weight = int(zzz[0][3]) #szs.sizes_mass_full
+                c_weight = int(zzz[0][2]) #mods.models_loadout
+                    
+            totalemissionsless100 = float(emissions_less)
+            print(totalemissionsless100)
+            totalemissionsmax100 = float(emissions_max)
+            max_airplane_weight = float(m_airplane_weight)
+            print(max_airplane_weight)
+            commercial_weight = float(c_weight)
+            print(commercial_weight)
+            
+            km = direct_distance_new[g5]
+            
+            
+            
+            em = km / 6.15
+            emissionsforpointless = totalemissionsless / em
+            print(emissionsforpointless)
+            emissionsforpointmax = totalemissionsmax / em
+            print(emissionsforpointmax)
+            
+            
+        #---append
+            
+            totalfuelwastedless_new.append(totalfuelwastedless)
+            totalfuelwastedmax_new.append(totalfuelwastedmax)
+            totalemissionless_new.append(totalemissionsless)
+            totalemissionmax_new.append(totalemissionsmax)
+            emissionsforpointless_new.append(emissionsforpointless)
+            emissionsforpointmax_new.append(emissionsforpointmax)
+            seats_max_new.append(30)#seats_max)
+            seats_less_new.append(15)#seats_less)
+        else:
+            bug_fail += 1
+        print('/')
+        g5 += 1#пока что пропускаем проблемный 252й нод и еще какие-то, потом это надо убрать
+    
+    except KeyError:
+        print("Дата в дебаге!")
+        file_new_name_problem = "./Error_debug/" + time_I + ".json"
+        file_new_for_problem = open(file_new_name_problem, mode='w', encoding='utf-8')
+        json.dump(all_air, file_new_for_problem)
+        file_new_for_problem.close()
+        #raise SystemExit
+        bug_fail += 1
+        g5 += 1
+   
+    
+print(bug_fail)
+    #править тут 
+#---recording exhaust
+flightname_today = []
+flightname_today_new = []
+flightname_pollution_today_data = []
+flightname_pollution_today = []
+g6 = 0
+while g6 < combien-bug_fail:
+    flightname_pollution_today_data = [
+        {"data": time_I, 
+         "airplane": in_data[g6],
+         "km": direct_distance_new[g6],
+         "totalfuelwastedless": totalfuelwastedless_new[g6],
+         "totalfuelwastedmax_new": totalfuelwastedmax_new[g6],
+         "totalemissionless_new": totalemissionless_new[g6],
+         "totalemissionmax_new": totalemissionmax_new[g6],
+         "emissionsforpointless_new": emissionsforpointless_new[g6],
+         "emissionsforpointmax_new": emissionsforpointmax_new[g6]
+         #"seats_less_new": seats_less_new[g6],
+         #"seats_max_new": seats_max_new[g6]
+         }
+    ]
+    flightname_pollution_today.append(flightname_pollution_today_data)
+    flightname_today = {"flightname": url_new[g6],
+                        "way": coordinates_new_form[g6],
+                        "rounds": flightname_pollution_today[g6]}
+    flightname_today_new.append(flightname_today)
+    g6 += 1
+    
+#print(coordinates_new_form[1])
+
+#---adding to BD ormaking new file
+last_generator = []
+print('??')
+glob = 0
+i = 0
+
+while glob < combien - bug_fail:
+    #print('entered')
+    file_name = url_new[glob] + ".json"
+    str_way = './res_new/' + str(time_I)
+    
+    id_for_mongo = time_I.replace('.', '') + str(glob) + flightname_today_new[glob]["flightname"]
+    
+    if not (os.path.exists(str_way)) :
+        os.mkdir(str_way)
+    #print('here') (заводить массив с номерами проблемных нодов)
+    last_generator = {
+            "_id": id_for_mongo,
+            "flightname": flightname_today_new[glob]["flightname"],
+            "from": origin_set[glob],
+            "to": destination_set[glob],
+            "info": flightname_today_new[glob]["rounds"],
+            "way": flightname_today_new[glob]["way"]
+            }
+    
+    file_new_name = str_way + url_new[glob] + ".json"
+    file_new_for_generator = open(file_new_name, mode='w+', encoding='utf-8')
+    json.dump(last_generator, file_new_for_generator)
+    file_new_for_generator.close()
+    glob += 1
+                           
+    if last_generator['flightname']=='/AFL1000':
+        x = last_generator
