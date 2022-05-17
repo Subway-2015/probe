@@ -1,0 +1,61 @@
+import json
+import datetime
+import os
+from pymongo import MongoClient
+import pprint
+
+file_debug = open("Push_II_debug.txt", mode='w', encoding='utf-8')
+file_debug.close()
+
+#----------- Получение имен файлов ----------
+#закачка в базу будет происходить ночью следующего дня, поэтому -1 день
+t2 = datetime.date.today()
+t3 = datetime.timedelta(days = 1)
+time_I = (t2 - t3).strftime('%d.%m.%Y') 
+
+current_dir = 'c://users/maxma/downloads/app/res_new/' + time_I 
+os.chdir (current_dir)
+datas = os.listdir()
+print(datas)
+
+#files = listdir(".")
+
+x = []
+i = 0
+while i < len(datas):
+    if datas[i].find('.json') != -1:
+        x.append(datas[i])
+        del datas[i]
+    else:
+        i += 1
+
+print(x)
+
+#----------- Запись в MongoDB ----------
+client = MongoClient('', 27017)
+db = client['F_...']
+collections = db[time_I]
+
+y = collections.drop()
+print(y)
+
+id_counter = 0 #дополнительный счетчик для уникальности
+k = 0
+i = 0
+while i < len(x):
+    try:
+        with open(x[i], mode = 'r', encoding = 'utf-8') as f:
+            file_data = json.load(f)
+            dat_id = time_I.replace('.', '')
+            id_all = int(dat_id) + id_counter
+            collections.insert_one(file_data)
+            id_counter += 1
+    except BaseException:
+         k += 1
+    i += 1
+
+client.close()
+
+file_debug = open("Push_II_debug.txt", mode='w', encoding='utf-8')
+file_debug.write("Working well")
+file_debug.close()
